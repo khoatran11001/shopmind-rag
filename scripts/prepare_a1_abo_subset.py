@@ -12,12 +12,12 @@ data/a1_abo_1500/
 └── DATASET.md
 
 Each product has:
-- product text metadata
+- canonical A1 product metadata ready for embedding/indexing
 - one local main image (ABO small image, max 256 px)
 - original ABO image URL/path for traceability
 
 Usage:
-    python scripts/prepare_a1_abo_subset.py \
+    python -m scripts.prepare_a1_abo_subset \
         --output data/a1_abo_1500 \
         --limit 1500 \
         --seed 42 \
@@ -200,6 +200,58 @@ def load_candidates(
     return candidates
 
 
+def build_canonical_record(
+    product: dict[str, Any],
+    *,
+    image_path: Path,
+    output_dir: Path,
+) -> dict[str, Any]:
+    """Convert a downloaded ABO candidate into the canonical A1 product schema."""
+    del output_dir
+
+    attributes = {
+        key: str(product[key]).strip()
+        for key in ("color", "material", "style", "product_type")
+        if product.get(key) and str(product[key]).strip()
+    }
+
+    search_lines = [str(product.get("title") or "").strip()]
+    brand = str(product.get("brand") or "").strip()
+    category = str(product.get("category") or "").strip()
+    description = str(product.get("description") or "").strip()
+    if brand:
+        search_lines.append(f"Brand: {brand}")
+    if category:
+        search_lines.append(f"Category: {category}")
+    if description:
+        search_lines.append(description)
+    for key in sorted(attributes):
+        search_lines.append(f"{key}: {attributes[key]}")
+
+    image_value = str(image_path)
+    return {
+        "product_id": str(product["product_id"]),
+        "title": str(product.get("title") or ""),
+        "description": description,
+        "brand": brand or None,
+        "category": category or None,
+        "attributes": attributes,
+        "image_paths": [image_value],
+        "main_image_path": image_value,
+        "search_text": "\n".join(line for line in search_lines if line),
+        "metadata": {
+            "dataset": "amazon_berkeley_objects",
+            "main_image_id": product.get("main_image_id"),
+            "abo_image_path": product.get("abo_image_path"),
+            "image_url": product.get("image_url"),
+            "image_width": product.get("image_width"),
+            "image_height": product.get("image_height"),
+            "bullet_points": list(product.get("bullet_points") or []),
+            "node_paths": list(product.get("node_paths") or []),
+        },
+    }
+
+
 def download_one(product: dict[str, Any], image_dir: Path) -> tuple[str, str | None]:
     product_id = product["product_id"]
     suffix = Path(product["abo_image_path"]).suffix.lower() or ".jpg"
@@ -269,16 +321,23 @@ def main() -> int:
             if path:
                 downloaded[product_id] = path
 
-    selected: list[dict[str, Any]] = []
+    selected_candidates: list[dict[str, Any]] = []
     for row in candidates:
         local_path = downloaded.get(row["product_id"])
         if not local_path:
             continue
-        row = dict(row)
-        row["image_path"] = str(Path(local_path).relative_to(output))
-        selected.append(row)
-        if len(selected) == args.limit:
+        selected_candidates.append(dict(row))
+        if len(selected_candidates) == args.limit:
             break
+
+    selected = [
+        build_canonical_record(
+            row,
+            image_path=Path(downloaded[row["product_id"]]),
+            output_dir=output,
+        )
+        for row in selected_candidates
+    ]
 
     if len(selected) < args.limit:
         raise RuntimeError(
@@ -300,15 +359,16 @@ def main() -> int:
 
     with manifest_path.open("w", encoding="utf-8") as handle:
         for row in selected:
+            metadata = row["metadata"]
             handle.write(
                 json.dumps(
                     {
                         "product_id": row["product_id"],
-                        "main_image_id": row["main_image_id"],
-                        "image_path": row["image_path"],
-                        "image_url": row["image_url"],
-                        "width": row["image_width"],
-                        "height": row["image_height"],
+                        "main_image_id": metadata["main_image_id"],
+                        "image_path": row["main_image_path"],
+                        "image_url": metadata["image_url"],
+                        "width": metadata["image_width"],
+                        "height": metadata["image_height"],
                     },
                     ensure_ascii=False,
                 )
