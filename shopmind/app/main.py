@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from shopmind.app.api.errors import EmbeddingUnavailable, ImageTooLarge, InvalidFilter, InvalidImage, SearchInfrastructureError, UnsupportedSearchMode
 from shopmind.app.api.routes.health import router as health_router
@@ -53,7 +54,7 @@ def _wire_runtime(app: FastAPI) -> None:
     app.state.runtime_error = None
 
 
-def create_app(*, search_service: Any | None = None, repository: Any | None = None, embedder: Any | None = None, index_alias: str = "products", max_image_bytes: int = 5 * 1024 * 1024, auto_wire: bool = True) -> FastAPI:
+def create_app(*, search_service: Any | None = None, repository: Any | None = None, embedder: Any | None = None, index_alias: str = "products", max_image_bytes: int = 5 * 1024 * 1024, product_image_dir: str | Path | None = None, auto_wire: bool = True) -> FastAPI:
     if max_image_bytes <= 0:
         raise ValueError("max_image_bytes must be positive")
 
@@ -76,6 +77,7 @@ def create_app(*, search_service: Any | None = None, repository: Any | None = No
     app.state.embedding_model = getattr(embedder, "model_name", None)
     app.state.embedding_version = getattr(embedder, "model_revision", None)
     app.state.runtime_error = None
+    app.mount("/media/products", StaticFiles(directory=product_image_dir or os.getenv("PRODUCT_IMAGE_DIR", "data/raw/images"), check_dir=False), name="product-images")
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):

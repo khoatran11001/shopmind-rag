@@ -7,6 +7,7 @@ import pytest
 from PIL import Image
 from shopmind.pipeline.embedding_artifacts import EmbeddingManifest, load_embedding_artifacts, validate_artifacts, write_embedding_artifacts
 from scripts.generate_embeddings import generate_embeddings
+from scripts.index_products import build_index_documents
 
 
 class FakeEmbeddingProvider:
@@ -58,3 +59,12 @@ def test_generate_embeddings_refuses_existing_directory_without_force(tmp_path):
     generate_embeddings(processed,output,provider,"fixture-v1",None,2,False)
     with pytest.raises(FileExistsError): generate_embeddings(processed,output,provider,"fixture-v1",None,2,False)
     generate_embeddings(processed,output,provider,"fixture-v2",None,2,True); manifest,*_=load_embedding_artifacts(output); assert manifest.dataset_version=="fixture-v2"
+
+
+def test_index_documents_omit_missing_image_zero_vector():
+    rows=[{"product_id":"P1","title":"No image"},{"product_id":"P2","title":"Has image"}]
+    text=np.array([[1,0,0,0],[0,1,0,0]],dtype=np.float32)
+    image=np.array([[0,0,0,0],[0,0,1,0]],dtype=np.float32)
+    documents=build_index_documents(rows,["P1","P2"],text,image,embedding_model="fake",embedding_version="test")
+    assert "image_vector" not in documents[0] and documents[0]["metadata"]["missing_image"] is True
+    assert documents[1]["image_vector"]==[0.0,0.0,1.0,0.0] and documents[1]["metadata"]["missing_image"] is False

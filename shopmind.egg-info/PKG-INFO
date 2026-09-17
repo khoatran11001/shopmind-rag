@@ -1,3 +1,24 @@
+Metadata-Version: 2.4
+Name: shopmind
+Version: 0.1.0
+Summary: Multimodal product retrieval foundation using Elasticsearch and SigLIP2
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi<1.0,>=0.115
+Requires-Dist: uvicorn[standard]<1.0,>=0.32
+Requires-Dist: pydantic<3.0,>=2.9
+Requires-Dist: PyYAML<7.0,>=6.0
+Requires-Dist: elasticsearch<9.0,>=8.15
+Requires-Dist: transformers<5.0,>=4.47
+Requires-Dist: torch<3.0,>=2.2
+Requires-Dist: pillow<13.0,>=10.4
+Requires-Dist: numpy<3.0,>=1.26
+Requires-Dist: python-multipart<1.0,>=0.0.12
+Provides-Extra: dev
+Requires-Dist: pytest<10.0,>=8.3; extra == "dev"
+Requires-Dist: pytest-asyncio<2.0,>=0.24; extra == "dev"
+Requires-Dist: httpx<1.0,>=0.27; extra == "dev"
+
 # ShopMind Multimodal Product Retrieval
 
 Python-first retrieval foundation for product search using Amazon Berkeley Objects (ABO), Elasticsearch BM25 + dense-vector kNN, SigLIP2 multimodal embeddings, Reciprocal Rank Fusion (RRF), FastAPI, and reproducible information-retrieval evaluation.
@@ -31,16 +52,6 @@ Elasticsearch is the primary search store. Embeddings are generated offline and 
 - Hugging Face model access if the configured SigLIP2 model requires it
 
 The recommended A1 subset is **5,000–10,000 products**; the examples use `8000`.
-
-## A1 web interface
-
-The React interface lives in the sibling `test-ui` repository. Start the complete local stack and open `http://localhost:5173`:
-
-```bash
-docker compose up --build
-```
-
-The UI compares two text retrieval modes side by side and provides SigLIP2 image search. Product images are served read-only from `data/raw/images` at `/media/products`.
 
 ## Exact local workflow
 

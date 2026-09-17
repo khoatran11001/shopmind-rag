@@ -28,8 +28,22 @@ services:
       ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:-}
       ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:-}
       HF_TOKEN: ${HF_TOKEN:-}
+      PRODUCT_IMAGE_DIR: /app/data/raw/images
     ports:
       - "8000:8000"
+    volumes:
+      - ./data/raw/images:/app/data/raw/images:ro
+
+  frontend:
+    build:
+      context: ../test-ui
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8000
+    ports:
+      - "5173:5173"
 
 volumes:
   esdata:
