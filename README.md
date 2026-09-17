@@ -7,18 +7,18 @@ A1 deliberately stops at retrieval. It does **not** implement LLM generation, RA
 ## Architecture
 
 ```text
-ABO -> preprocess -> canonical products -> SigLIP2 text/image embeddings
-                                              |
-                                              v
-                                   Elasticsearch products_vN
-                                      /                 \
-                                   BM25                 kNN
-                                      \                 /
-                                       --- RRF hybrid ---
-                                               |
-                                         SearchService
-                                           /       \
-                                      FastAPI   future RAG
+ABO compact subset -> canonical products + local main images -> SigLIP2 text/image embeddings
+                                                        |
+                                                        v
+                                             Elasticsearch products_vN
+                                                /                 \
+                                             BM25                 kNN
+                                                \                 /
+                                                 --- RRF hybrid ---
+                                                         |
+                                                   SearchService
+                                                     /       \
+                                                FastAPI   future RAG
 ```
 
 Elasticsearch is the primary search store. Embeddings are generated offline and saved as reusable artifacts before any indexing step.
@@ -27,10 +27,10 @@ Elasticsearch is the primary search store. Embeddings are generated offline and 
 
 - Python 3.11+
 - Docker + Docker Compose for local Elasticsearch
-- Sufficient disk space for the selected ABO subset and model cache
+- Sufficient disk space for ~1,500 ABO product images and model cache
 - Hugging Face model access if the configured SigLIP2 model requires it
 
-The recommended A1 subset is **5,000–10,000 products**; the examples use `8000`.
+The default A1 development dataset is **1,500 ABO products**, each with **one local main image** from the public ABO small-image collection (maximum dimension 256 px). The dataset builder is deterministic for the same seed and can be scaled to 1,000–10,000 products with `--limit`.
 
 ## A1 web interface
 
@@ -40,7 +40,7 @@ The React interface lives in the sibling `test-ui` repository. Start the complet
 docker compose up --build
 ```
 
-The UI compares two text retrieval modes side by side and provides SigLIP2 image search. Product images are served read-only from `data/raw/images` at `/media/products`.
+The UI compares two text retrieval modes side by side and provides SigLIP2 image search.
 
 ## Exact local workflow
 
@@ -49,11 +49,30 @@ Run these commands from the repository root in this order:
 ```bash
 python -m pip install -e .[dev]
 docker compose up -d elasticsearch
-python -m scripts.download_abo --source-dir /path/to/abo --output data/raw
-python -m scripts.preprocess --input data/raw/products.jsonl --image-map data/raw/image_map.json --output data/processed/products.jsonl --limit 8000 --seed 42
-python -m scripts.generate_embeddings --input data/processed/products.jsonl --output-dir data/embeddings/abo_subset_v1 --config configs/app.yaml --dataset-version abo_subset_v1 --device auto
-python -m scripts.create_index --manifest data/embeddings/abo_subset_v1/manifest.json --index-name products_v1
-python -m scripts.index_products --products data/processed/products.jsonl --embeddings data/embeddings/abo_subset_v1 --index-name products_v1 --switch-alias products
+
+python -m scripts.prepare_a1_abo_subset \
+  --output data/a1_abo_1500 \
+  --limit 1500 \
+  --seed 42 \
+  --workers 16
+
+python -m scripts.generate_embeddings \
+  --input data/a1_abo_1500/products.jsonl \
+  --output-dir data/embeddings/abo_a1_1500_v1 \
+  --config configs/app.yaml \
+  --dataset-version abo_a1_1500_v1 \
+  --device auto
+
+python -m scripts.create_index \
+  --manifest data/embeddings/abo_a1_1500_v1/manifest.json \
+  --index-name products_a1_1500_v1
+
+python -m scripts.index_products \
+  --products data/a1_abo_1500/products.jsonl \
+  --embeddings data/embeddings/abo_a1_1500_v1 \
+  --index-name products_a1_1500_v1 \
+  --switch-alias products
+
 pytest -m integration -q
 uvicorn shopmind.app.main:app --reload
 python -m evaluation.runner --config configs/experiments/bm25.yaml
@@ -69,9 +88,48 @@ data/evaluation/qrels.jsonl
 
 You can override these with `--queries` and `--qrels`.
 
-## Raw data rule
+## Compact A1 dataset
 
-`data/raw` is treated as immutable input. `scripts.download_abo` refuses to replace an existing raw file unless `--force` is explicitly supplied. `scripts.preprocess` writes processed JSONL atomically and is deterministic for the same input, limit, and seed.
+`scripts.prepare_a1_abo_subset` downloads a deterministic subset directly from the public Amazon Berkeley Objects dataset and writes:
+
+```text
+data/a1_abo_1500/
+├── products.jsonl
+├── image_manifest.jsonl
+├── DATASET.md
+└── images/
+    ├── <product_id>.jpg
+    └── ...
+```
+
+`products.jsonl` is already in the canonical schema expected by `scripts.generate_embeddings` and `scripts.index_products`, so the compact flow does **not** require a separate `download_abo` or `preprocess` step.
+
+Each product contains:
+
+```text
+product_id
+title
+description
+brand
+category
+attributes
+image_paths
+main_image_path
+search_text
+metadata
+```
+
+`main_image_path` points to the downloaded local image, while `metadata.image_url` preserves the original ABO small-image URL for traceability. Only successfully downloaded images are included in the final subset, so a 1,500-record dataset has 1,500 usable main images.
+
+For a larger local experiment, change only the limit, for example:
+
+```bash
+python -m scripts.prepare_a1_abo_subset \
+  --output data/a1_abo_5000 \
+  --limit 5000 \
+  --seed 42 \
+  --workers 16
+```
 
 ## Embedding artifacts
 
