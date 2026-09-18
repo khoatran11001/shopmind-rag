@@ -1,13 +1,13 @@
 experiment:
-  name: bm25
+  name: image_dense
   dataset_version: abo_a1_1500_v1
   index_version: products_a1_1500_v1
 retrieval:
-  mode: bm25
+  mode: image_dense
   top_k: 10
   candidate_k: 100
 fusion:
-  method: rrf
+  method: none
   rrf_k: 60
 embedding:
   model: google/siglip2-base-patch16-224

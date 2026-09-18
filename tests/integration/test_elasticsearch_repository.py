@@ -25,6 +25,8 @@ def test_repository_bm25_vector_filter_and_alias_lifecycle():
     try:
         create_versioned_index(client,index_name,4); repo=ElasticsearchProductRepository(client,index_name); success,errors=repo.bulk_index(index_name,documents); assert success==3 and errors==[]; client.indices.refresh(index=index_name)
         lexical=repo.lexical_search("Black Running Shoe",3,{}); assert lexical[0].product_id=="P1"
+        filtered_only=repo.lexical_search(None,3,{"brand":"acme"}); assert {hit.product_id for hit in filtered_only}=={"P1","P3"}
+        partial=repo.lexical_search("shoe",3,{"category":"hoe"}); assert partial[0].product_id=="P1"
         vector=repo.vector_search("text_vector",[1,0,0,0],2,3,{}); assert vector[0].product_id=="P1"
         filtered=repo.vector_search("text_vector",[1,0,0,0],3,3,{"category":"Furniture"}); assert {hit.product_id for hit in filtered}=={"P2"}
         validate_product_index(client,index_name,expected_count=3,dimension=4,smoke_query="Black Running Shoe",smoke_vector=[1,0,0,0]); switch_alias(client,alias=alias,target=index_name); aliases=client.indices.get_alias(name=alias); assert index_name in aliases

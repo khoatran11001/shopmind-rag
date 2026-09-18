@@ -3,13 +3,19 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Literal
+
+from PIL import Image, UnidentifiedImageError
 
 
 @dataclass(frozen=True)
 class EvaluationQuery:
     query_id: str
-    query: str
+    query: str | None = None
+    query_type: Literal["text", "image"] = "text"
+    image_path: Path | None = None
+    group: str = "general"
+    language: Literal["en", "vi"] | None = None
 
 
 def _jsonl(path: Path) -> Iterable[tuple[int, dict]]:
@@ -31,15 +37,35 @@ def load_queries(path: str | Path) -> list[EvaluationQuery]:
     seen: set[str] = set()
     for line_number, row in _jsonl(path):
         query_id = str(row.get("query_id") or "").strip()
-        query = str(row.get("query") or "").strip()
+        query_type = str(row.get("query_type") or "text").strip()
+        query = str(row.get("query") or "").strip() or None
+        group = str(row.get("group") or "general").strip()
+        language = str(row.get("language") or "").strip() or None
         if not query_id:
             raise ValueError(f"{path}:{line_number} query_id must not be blank")
         if query_id in seen:
             raise ValueError(f"duplicate query_id: {query_id}")
-        if not query:
+        if query_type not in {"text", "image"}:
+            raise ValueError(f"{path}:{line_number} query_type must be text or image")
+        if query_type == "text" and not query:
             raise ValueError(f"{path}:{line_number} query text must not be blank")
+        if language not in {None, "en", "vi"}:
+            raise ValueError(f"{path}:{line_number} language must be en or vi")
+        image_path: Path | None = None
+        if query_type == "image":
+            image_value = str(row.get("image_path") or "").strip()
+            if not image_value:
+                raise ValueError(f"{path}:{line_number} image_path must not be blank")
+            image_path = Path(image_value)
+            if not image_path.is_absolute():
+                image_path = (path.parent / image_path).resolve()
+            try:
+                with Image.open(image_path) as image:
+                    image.verify()
+            except (FileNotFoundError, UnidentifiedImageError, OSError) as exc:
+                raise ValueError(f"{path}:{line_number} image_path must reference a valid image") from exc
         seen.add(query_id)
-        queries.append(EvaluationQuery(query_id=query_id, query=query))
+        queries.append(EvaluationQuery(query_id, query, query_type, image_path, group, language))
     return queries
 
 
@@ -62,7 +88,12 @@ def load_qrels(
             raise ValueError(f"{path}:{line_number} relevance must be an integer")
         if relevance < 0:
             raise ValueError(f"{path}:{line_number} relevance must not be negative")
+        if relevance not in {0, 1, 2}:
+            raise ValueError(f"{path}:{line_number} relevance must be 0, 1, or 2")
         if product_id in qrels[query_id]:
             raise ValueError(f"duplicate qrel for {query_id}/{product_id}")
         qrels[query_id][product_id] = relevance
+    missing_positive = [query_id for query_id, rows in qrels.items() if not any(value > 0 for value in rows.values())]
+    if missing_positive:
+        raise ValueError(f"qrels must contain a positive relevance for every query: {missing_positive[0]}")
     return qrels

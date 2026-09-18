@@ -14,15 +14,17 @@ FilterValue = str | list[str]
 
 @dataclass(frozen=True)
 class SearchRequest:
-    query: str
+    query: str | None = None
     mode: SearchMode = SearchMode.HYBRID
     top_k: int = 10
     candidate_k: int = 100
     filters: dict[str, FilterValue] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not self.query.strip():
-            raise ValueError("query must not be blank")
+        query = self.query.strip() if isinstance(self.query, str) else None
+        object.__setattr__(self, "query", query or None)
+        if not self.query and not self.filters:
+            raise ValueError("query or at least one filter is required")
         if self.top_k <= 0:
             raise ValueError("top_k must be positive")
         if self.candidate_k < self.top_k:

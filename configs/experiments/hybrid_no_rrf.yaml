@@ -1,7 +1,7 @@
 experiment:
   name: hybrid_no_rrf
-  dataset_version: abo_subset_v1
-  index_version: products_v1
+  dataset_version: abo_a1_1500_v1
+  index_version: products_a1_1500_v1
 retrieval:
   mode: hybrid
   top_k: 10

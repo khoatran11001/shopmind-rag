@@ -29,6 +29,12 @@ class FakeRepository:
         self.ready = ready
         self.alias = alias
 
+    def filter_options(self, field, prefix="", limit=20):
+        del prefix, limit
+        if field not in {"brand", "category", "product_id"}:
+            raise ValueError(f"unsupported filter field: {field}")
+        return [{"value": "Acme", "count": 2}] if field == "brand" else []
+
     def ping(self):
         return self.ready
 

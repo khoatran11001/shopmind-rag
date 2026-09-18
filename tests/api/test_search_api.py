@@ -34,6 +34,29 @@ def test_text_search_validation_statuses(client):
     assert client.post("/api/v1/search/text", json={"query": "x", "filters": {"metadata.secret": "x"}}).status_code == 400
 
 
+def test_filter_only_text_search_accepts_filters_without_query(client, fake_service):
+    response = client.post("/api/v1/search/text", json={"mode": "bm25", "filters": {"brand": [" Acme", "Acme", " "]}})
+
+    assert response.status_code == 200
+    assert response.json()["query"] is None
+    assert response.json()["filter_only"] is True
+    assert fake_service.text_requests[0].query is None
+    assert fake_service.text_requests[0].filters == {"brand": ["Acme"]}
+
+
+def test_filter_only_search_requires_bm25(client):
+    response = client.post("/api/v1/search/text", json={"mode": "hybrid", "filters": {"category": "Shoes"}})
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "unsupported_search_mode"
+
+
+def test_filter_only_search_requires_at_least_one_filter(client):
+    response = client.post("/api/v1/search/text", json={"mode": "bm25"})
+
+    assert response.status_code == 422
+
+
 def test_empty_results_are_http_200():
     service = FakeSearchService(results=[])
     app = create_app(search_service=service, repository=FakeRepository(), embedder=FakeEmbedder(), auto_wire=False)
@@ -44,12 +67,26 @@ def test_empty_results_are_http_200():
 
 
 def test_valid_image_upload_decodes_rgb_before_service(client, fake_service):
-    response = client.post("/api/v1/search/image?top_k=3&candidate_k=8&category=Shoes", files={"image": ("query.png", _png_bytes(), "image/png")})
+    response = client.post("/api/v1/search/image?top_k=3&candidate_k=8&category=Shoes&category=Boots&brand=Acme", files={"image": ("query.png", _png_bytes(), "image/png")})
     assert response.status_code == 200
     decoded, top_k, candidate_k, filters = fake_service.image_requests[0]
     assert decoded.mode == "RGB"
     assert (top_k, candidate_k) == (3, 8)
-    assert filters == {"category": "Shoes"}
+    assert filters == {"brand": "Acme", "category": ["Shoes", "Boots"]}
+
+
+def test_filter_options_endpoint_returns_catalog_values(client):
+    response = client.get("/api/v1/search/filter-options?field=brand&prefix=ac&limit=5")
+
+    assert response.status_code == 200
+    assert response.json() == {"field": "brand", "options": [{"value": "Acme", "count": 2}]}
+
+
+def test_filter_options_endpoint_rejects_unknown_field(client):
+    response = client.get("/api/v1/search/filter-options?field=branch")
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_filter"
 
 
 def test_non_image_content_and_invalid_image_bytes_fail(client):

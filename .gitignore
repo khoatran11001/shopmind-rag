@@ -13,7 +13,9 @@ htmlcov/
 data/raw/
 data/processed/
 data/embeddings/
+data/a1_abo_1500/
 runs/
+evaluation/benchmarks/a1/images/
 .cache/
 models/
 .superpowers/

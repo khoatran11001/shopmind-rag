@@ -14,6 +14,10 @@ from shopmind.app.infrastructure.elasticsearch.repository import ElasticsearchPr
 from shopmind.pipeline.embedding_artifacts import load_embedding_artifacts
 
 
+def public_image_url(main_image_path: str | None) -> str | None:
+    return f"/media/products/{Path(main_image_path).name}" if main_image_path else None
+
+
 def _read_processed(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
@@ -37,7 +41,7 @@ def build_index_documents(processed_rows: list[dict[str, Any]], product_ids: lis
         attributes = dict(row.get("attributes") or {})
         metadata = dict(row.get("metadata") or {})
         metadata["missing_image"] = bool(np.isclose(np.linalg.norm(image_vector), 0.0, atol=1e-6))
-        document = {"product_id": str(row["product_id"]), "title": str(row.get("title") or ""), "description": str(row.get("description") or ""), "brand": row.get("brand"), "category": row.get("category"), "attributes": attributes, "attributes_text": "\n".join(f"{key}: {attributes[key]}" for key in sorted(attributes)), "search_text": str(row.get("search_text") or ""), "image_url": row.get("main_image_path"), "text_vector": text_vector.astype(np.float32, copy=False).tolist(), "embedding_model": embedding_model, "embedding_version": embedding_version, "metadata": metadata}
+        document = {"product_id": str(row["product_id"]), "title": str(row.get("title") or ""), "description": str(row.get("description") or ""), "brand": row.get("brand"), "category": row.get("category"), "attributes": attributes, "attributes_text": "\n".join(f"{key}: {attributes[key]}" for key in sorted(attributes)), "search_text": str(row.get("search_text") or ""), "image_url": public_image_url(row.get("main_image_path")), "text_vector": text_vector.astype(np.float32, copy=False).tolist(), "embedding_model": embedding_model, "embedding_version": embedding_version, "metadata": metadata}
         if not metadata["missing_image"]:
             document["image_vector"] = image_vector.astype(np.float32, copy=False).tolist()
         documents.append(document)

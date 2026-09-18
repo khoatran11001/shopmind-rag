@@ -1,0 +1,100 @@
+{"group": "exact", "language": "en", "query": "abis drugstore", "query_id": "e001", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "AmazonBasics Felt Furniture Pads 4 2/3'' x 6'' Square FPS012BE", "query_id": "e002", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "beige abis lawn and garden", "query_id": "e003", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "Bottle accessory", "query_id": "e004", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "AmazonBasics PowerBank (5,600 mAh) and Lightning Cable (6 Feet)", "query_id": "e005", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "Amazon Brand - Solimo Automatic Air Freshener Kit - 250 ml (Morning Jasmine)", "query_id": "e006", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "Amazon Basics - Cubierta para Remolque (renovada), 30'-33'", "query_id": "e007", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "AmazonBasics High Mileage Motor Oil - Full Synthetic - 5W-20-1 Quart - 6 Pack", "query_id": "e008", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "AmazonBasics Wiper Blade 350 mm", "query_id": "e009", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "baby product", "query_id": "e010", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "AmazonBasics Small Backpack, Yellow", "query_id": "e011", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "Amazon Brand - Solimo Baking Paper & Cooking Parchment Paper (20 m)", "query_id": "e012", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "AmazonBasics Charcoal Grill - Compact Size, Table Top Grill and Side Fire Box, Black", "query_id": "e013", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "UMI. by Amazon - 47 Inch super Curl bar", "query_id": "e014", "query_type": "text"}
+{"group": "exact", "language": "en", "query": "(Renewed) Amazon Brand - Solimo Storage Basket, Set of 2, Medium, Brown", "query_id": "e015", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "bathwater additive for everyday use", "query_id": "e016", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "battery for everyday use", "query_id": "e017", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "Maroon with Pink Piping bean bag chair for everyday use", "query_id": "e018", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "beauty for everyday use", "query_id": "e019", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "Orly Silver bed for everyday use", "query_id": "e020", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "Faggio bench for everyday use", "query_id": "e021", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "White biss for everyday use", "query_id": "e022", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "blank media for everyday use", "query_id": "e023", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "boot for everyday use", "query_id": "e024", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "1 paquete bottle for everyday use", "query_id": "e025", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "bracelet for everyday use", "query_id": "e026", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "bread for everyday use", "query_id": "e027", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "breakfast cereal for everyday use", "query_id": "e028", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "building material for everyday use", "query_id": "e029", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "White, Oak Sonoma 2d cabinet for everyday use", "query_id": "e030", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "camera lens filters for everyday use", "query_id": "e031", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "camera other accessories for everyday use", "query_id": "e032", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "camera tripod for everyday use", "query_id": "e033", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "candle holder for everyday use", "query_id": "e034", "query_type": "text"}
+{"group": "semantic", "language": "en", "query": "Red cargo strap for everyday use", "query_id": "e035", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "Amazon Basics carrying case or bag", "query_id": "e036", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "Amazon Brand - Solimo Multicolor cellular phone case", "query_id": "e037", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "AmazonBasics ce carrying case or bag", "query_id": "e038", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "Stone & Beam Denim chair", "query_id": "e039", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "Ah Goo Baby Spa changing pad cover", "query_id": "e040", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua AmazonBasics sản phẩm trắng", "query_id": "v001", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua Happy Belly sản phẩm", "query_id": "v002", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua AmazonCommercial sản phẩm", "query_id": "v003", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua AmazonBasics sản phẩm", "query_id": "v004", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua Amazon Brand - Solimo sản phẩm đen", "query_id": "v005", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua AmazonBasics sản phẩm", "query_id": "v006", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua Happy Belly (ハッピーベリー) sản phẩm", "query_id": "v007", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua AmazonBasics sản phẩm đen", "query_id": "v008", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua AmazonBasics sản phẩm", "query_id": "v009", "query_type": "text"}
+{"group": "exact", "language": "vi", "query": "mua AmazonBasics sản phẩm", "query_id": "v010", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm AmazonBasics sản phẩm đen để sử dụng hằng ngày", "query_id": "v011", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm 365 Everyday Value sản phẩm để sử dụng hằng ngày", "query_id": "v012", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm Poecent sản phẩm để sử dụng hằng ngày", "query_id": "v013", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm 365 by Whole Foods Market sản phẩm để sử dụng hằng ngày", "query_id": "v014", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm 365 by Whole Foods Market sản phẩm để sử dụng hằng ngày", "query_id": "v015", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm Happy Belly sản phẩm để sử dụng hằng ngày", "query_id": "v016", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm Stone & Beam sản phẩm để sử dụng hằng ngày", "query_id": "v017", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm Solimo sản phẩm để sử dụng hằng ngày", "query_id": "v018", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm AmazonBasics sản phẩm để sử dụng hằng ngày", "query_id": "v019", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm Artum Hill sản phẩm để sử dụng hằng ngày", "query_id": "v020", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm AmazonBasics sản phẩm để sử dụng hằng ngày", "query_id": "v021", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm Happy Belly sản phẩm để sử dụng hằng ngày", "query_id": "v022", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm AmazonBasics sản phẩm để sử dụng hằng ngày", "query_id": "v023", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm David King & Co sản phẩm để sử dụng hằng ngày", "query_id": "v024", "query_type": "text"}
+{"group": "semantic", "language": "vi", "query": "tìm Amazon Collection(アマゾンコレクション) sản phẩm để sử dụng hằng ngày", "query_id": "v025", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "mẫu Happy Belly Select sản phẩm", "query_id": "v026", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "mẫu AmazonBasics sản phẩm trắng", "query_id": "v027", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "mẫu Amazon Commercial sản phẩm đen", "query_id": "v028", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "mẫu AmazonBasics sản phẩm", "query_id": "v029", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "mẫu UMI sản phẩm", "query_id": "v030", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "product AmazonBasics exercise mat Blue", "query_id": "h001", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "product Obsidian Sunglasses eyewear Black", "query_id": "h002", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "product facial tissue", "query_id": "h003", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "product Amazon Collection fashionearring Rose Gold", "query_id": "h004", "query_type": "text"}
+{"group": "hard_negative", "language": "en", "query": "product Amazon Collection fashionnecklacebraceletanklet Gold", "query_id": "h005", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "sản phẩm Amazon Collection sản phẩm trắng", "query_id": "h006", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "sản phẩm AmazonBasics sản phẩm", "query_id": "h007", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "sản phẩm Amazon Collection sản phẩm trắng", "query_id": "h008", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "sản phẩm Amazon Collection sản phẩm", "query_id": "h009", "query_type": "text"}
+{"group": "hard_negative", "language": "vi", "query": "sản phẩm Amazon Collection(アマゾンコレクション) nhẫn", "query_id": "h010", "query_type": "text"}
+{"group": "image", "image_path": "images/i001.jpg", "query_id": "i001", "query_type": "image"}
+{"group": "image", "image_path": "images/i002.jpg", "query_id": "i002", "query_type": "image"}
+{"group": "image", "image_path": "images/i003.jpg", "query_id": "i003", "query_type": "image"}
+{"group": "image", "image_path": "images/i004.jpg", "query_id": "i004", "query_type": "image"}
+{"group": "image", "image_path": "images/i005.jpg", "query_id": "i005", "query_type": "image"}
+{"group": "image", "image_path": "images/i006.jpg", "query_id": "i006", "query_type": "image"}
+{"group": "image", "image_path": "images/i007.jpg", "query_id": "i007", "query_type": "image"}
+{"group": "image", "image_path": "images/i008.jpg", "query_id": "i008", "query_type": "image"}
+{"group": "image", "image_path": "images/i009.jpg", "query_id": "i009", "query_type": "image"}
+{"group": "image", "image_path": "images/i010.jpg", "query_id": "i010", "query_type": "image"}
+{"group": "image", "image_path": "images/i011.jpg", "query_id": "i011", "query_type": "image"}
+{"group": "image", "image_path": "images/i012.jpg", "query_id": "i012", "query_type": "image"}
+{"group": "image", "image_path": "images/i013.jpg", "query_id": "i013", "query_type": "image"}
+{"group": "image", "image_path": "images/i014.jpg", "query_id": "i014", "query_type": "image"}
+{"group": "image", "image_path": "images/i015.jpg", "query_id": "i015", "query_type": "image"}
+{"group": "image", "image_path": "images/i016.jpg", "query_id": "i016", "query_type": "image"}
+{"group": "image", "image_path": "images/i017.jpg", "query_id": "i017", "query_type": "image"}
+{"group": "image", "image_path": "images/i018.jpg", "query_id": "i018", "query_type": "image"}
+{"group": "image", "image_path": "images/i019.jpg", "query_id": "i019", "query_type": "image"}
+{"group": "image", "image_path": "images/i020.jpg", "query_id": "i020", "query_type": "image"}

@@ -28,11 +28,11 @@ services:
       ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:-}
       ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:-}
       HF_TOKEN: ${HF_TOKEN:-}
-      PRODUCT_IMAGE_DIR: /app/data/raw/images
+      PRODUCT_IMAGE_DIR: /app/data/a1_abo_1500/images
     ports:
       - "8000:8000"
     volumes:
-      - ./data/raw/images:/app/data/raw/images:ro
+      - ./data/a1_abo_1500/images:/app/data/a1_abo_1500/images:ro
 
   frontend:
     build:

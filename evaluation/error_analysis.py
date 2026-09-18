@@ -65,6 +65,8 @@ def export_error_cases(path: str | Path, cases: list[dict[str, Any]]) -> Path:
             if suggested not in _FAILURE_CATEGORIES:
                 suggested = "uncategorized"
             row = {
+                "query_id": str(case.get("query_id") or ""),
+                "query_type": str(case.get("query_type") or "text"),
                 "query": str(case.get("query") or ""),
                 "relevant_ids": list(case.get("relevant_ids") or []),
                 "top_retrieved_ids": list(case.get("top_retrieved_ids") or []),

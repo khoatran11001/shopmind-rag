@@ -1,6 +1,35 @@
 from pathlib import Path
 
-from scripts.prepare_a1_abo_subset import build_canonical_record
+from scripts.prepare_a1_abo_subset import build_canonical_record, select_balanced_subset
+
+
+def test_select_balanced_subset_is_deterministic_and_caps_categories():
+    rows = [
+        {"product_id": f"phone-{index}", "category": "PHONE_CASE"}
+        for index in range(6)
+    ] + [
+        {"product_id": f"shoe-{index}", "category": "SHOES"}
+        for index in range(3)
+    ]
+
+    first = select_balanced_subset(rows, limit=4, max_per_category=2, seed=42)
+    second = select_balanced_subset(rows, limit=4, max_per_category=2, seed=42)
+
+    assert first == second
+    assert len(first) == 4
+    assert sum(row["category"] == "PHONE_CASE" for row in first) == 2
+    assert sum(row["category"] == "SHOES" for row in first) == 2
+
+
+def test_select_balanced_subset_fails_when_pool_cannot_meet_limit():
+    rows = [{"product_id": f"p{index}", "category": "ONE"} for index in range(3)]
+
+    try:
+        select_balanced_subset(rows, limit=2, max_per_category=1, seed=42)
+    except RuntimeError as exc:
+        assert "1/2" in str(exc)
+    else:
+        raise AssertionError("expected an undersized balanced pool to fail")
 
 
 def test_build_canonical_record_matches_a1_processed_schema(tmp_path: Path):

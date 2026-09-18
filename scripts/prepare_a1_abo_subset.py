@@ -33,6 +33,7 @@ import csv
 import gzip
 import io
 import json
+import math
 import random
 import shutil
 import sys
@@ -49,6 +50,30 @@ IMAGE_META_URL = BASE + "/images/metadata/images.csv.gz"
 SMALL_IMAGE_URL = BASE + "/images/small/{path}"
 
 USER_AGENT = "ShopMind-A1-Dataset-Builder/1.0"
+
+
+def select_balanced_subset(
+    rows: list[dict[str, Any]],
+    *,
+    limit: int,
+    max_per_category: int,
+    seed: int,
+) -> list[dict[str, Any]]:
+    if limit <= 0 or max_per_category <= 0:
+        raise ValueError("limit and max_per_category must be positive")
+    shuffled = list(rows)
+    random.Random(seed).shuffle(shuffled)
+    counts: dict[str, int] = {}
+    selected: list[dict[str, Any]] = []
+    for row in shuffled:
+        category = str(row.get("category") or "UNKNOWN")
+        if counts.get(category, 0) >= max_per_category:
+            continue
+        selected.append(row)
+        counts[category] = counts.get(category, 0) + 1
+        if len(selected) == limit:
+            return selected
+    raise RuntimeError(f"balanced candidate pool produced {len(selected)}/{limit} products")
 
 
 def fetch_bytes(url: str, retries: int = 4, timeout: int = 60) -> bytes:
@@ -279,6 +304,7 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=1500)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--workers", type=int, default=16)
+    parser.add_argument("--max-per-category", type=int, default=150)
     parser.add_argument(
         "--candidate-multiplier",
         type=float,
@@ -290,6 +316,8 @@ def main() -> int:
 
     if not 1000 <= args.limit <= 10000:
         parser.error("--limit must be between 1000 and 10000 for the A1 compact dataset.")
+    if args.max_per_category <= 0:
+        parser.error("--max-per-category must be positive")
 
     output = args.output
     if output.exists() and args.force:
@@ -299,15 +327,21 @@ def main() -> int:
     image_dir.mkdir(parents=True, exist_ok=True)
 
     image_map = load_image_map()
-    pool_size = max(args.limit + 100, int(args.limit * args.candidate_multiplier))
+    pool_size = max(args.limit + 100, args.limit * 5)
     candidates = load_candidates(image_map, pool_size)
     if len(candidates) < args.limit:
         raise RuntimeError(
             f"Only {len(candidates)} valid candidates found; need {args.limit}."
         )
 
-    rng = random.Random(args.seed)
-    rng.shuffle(candidates)
+    download_limit = max(args.limit + 100, math.ceil(args.limit * args.candidate_multiplier))
+    download_cap = max(args.max_per_category, math.ceil(args.max_per_category * args.candidate_multiplier))
+    candidates = select_balanced_subset(
+        candidates,
+        limit=download_limit,
+        max_per_category=download_cap,
+        seed=args.seed,
+    )
 
     print(f"Downloading images with {args.workers} workers...")
     downloaded: dict[str, str] = {}
@@ -321,14 +355,13 @@ def main() -> int:
             if path:
                 downloaded[product_id] = path
 
-    selected_candidates: list[dict[str, Any]] = []
-    for row in candidates:
-        local_path = downloaded.get(row["product_id"])
-        if not local_path:
-            continue
-        selected_candidates.append(dict(row))
-        if len(selected_candidates) == args.limit:
-            break
+    available = [row for row in candidates if downloaded.get(row["product_id"])]
+    selected_candidates = select_balanced_subset(
+        available,
+        limit=args.limit,
+        max_per_category=args.max_per_category,
+        seed=args.seed,
+    )
 
     selected = [
         build_canonical_record(
@@ -383,7 +416,7 @@ def main() -> int:
 - Image resolution: ABO `images/small/` (maximum dimension 256 px)
 - Random seed: {args.seed}
 - Product metadata: official ABO listing metadata
-- License: CC BY 4.0 according to the official ABO download page
+- License note: the official ABO download page states CC BY 4.0, while the AWS Registry states CC BY-NC 4.0. This coursework uses the conservative CC BY-NC 4.0 interpretation.
 - Attribution: Amazon.com and the ABO dataset authors
 - Official page: https://amazon-berkeley-objects.s3.amazonaws.com/index.html
 

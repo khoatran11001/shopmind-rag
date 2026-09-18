@@ -27,6 +27,18 @@ def render_run_summary(payload: dict[str, Any]) -> str:
         f"| nDCG@10 | {metrics['nDCG@10']:.6f} |",
         f"| MRR@10 | {metrics['MRR@10']:.6f} |",
         "",
+        "## Latency",
+        "",
+        f"- Latency p50: {payload['latency_ms']['p50']:.3f} ms",
+        f"- Latency p95: {payload['latency_ms']['p95']:.3f} ms",
+        "",
+        "## Metrics by query type",
+        "",
+    ]
+    for query_type, values in payload["metrics_by_query_type"].items():
+        lines.append(f"- {query_type}: Recall@10={values['Recall@10']:.6f}, nDCG@10={values['nDCG@10']:.6f}, MRR@10={values['MRR@10']:.6f}")
+    lines.extend([
+        "",
         "## Query Outcomes",
         "",
         f"- Successful queries: {payload['successful_queries']}",
@@ -41,7 +53,7 @@ def render_run_summary(payload: dict[str, Any]) -> str:
         "",
         "No statistical-significance claim is made by this summary.",
         "",
-    ]
+    ])
     return "\n".join(lines)
 
 

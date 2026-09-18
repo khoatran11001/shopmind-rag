@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 from evaluation.ablation import HybridNoRRFControlService, run_ablation
@@ -57,3 +58,6 @@ def test_run_ablation_writes_comparison_with_bm25_deltas(tmp_path):
     text = (summary.comparison_dir / "comparison.md").read_text()
     assert "BM25 baseline" in text
     assert "causality" in text.lower()
+    error_cases = [json.loads(line) for line in (summary.comparison_dir / "error-cases.jsonl").read_text().splitlines()]
+    assert error_cases
+    assert {"query_id", "query_type", "suggested_category", "reviewer_note"} <= error_cases[0].keys()

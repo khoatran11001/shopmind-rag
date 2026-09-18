@@ -7,7 +7,7 @@ from shopmind.app.domain.search_result import RawSearchHit, RetrievalScores, Sea
 
 
 class _LexicalRepository(Protocol):
-    def lexical_search(self, query: str, size: int, filters: dict[str, str | list[str]]) -> list[RawSearchHit]: ...
+    def lexical_search(self, query: str | None, size: int, filters: dict[str, str | list[str]]) -> list[RawSearchHit]: ...
 
 
 class BM25Retriever:

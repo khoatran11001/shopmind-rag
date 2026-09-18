@@ -16,6 +16,12 @@ def test_search_request_has_stable_defaults():
     assert request.filters == {}
 
 
+def test_search_request_allows_filter_only_without_query():
+    request = SearchRequest(mode=SearchMode.BM25, filters={"brand": "Acme"})
+
+    assert request.query is None
+
+
 def test_search_request_rejects_invalid_rank_window():
     with pytest.raises(ValueError): SearchRequest(query="shoes", top_k=11, candidate_k=10)
 

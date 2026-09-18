@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 from shopmind.pipeline.embedding_artifacts import EmbeddingManifest, load_embedding_artifacts, validate_artifacts, write_embedding_artifacts
 from scripts.generate_embeddings import generate_embeddings
-from scripts.index_products import build_index_documents
+from scripts.index_products import build_index_documents, public_image_url
 
 
 class FakeEmbeddingProvider:
@@ -68,3 +68,13 @@ def test_index_documents_omit_missing_image_zero_vector():
     documents=build_index_documents(rows,["P1","P2"],text,image,embedding_model="fake",embedding_version="test")
     assert "image_vector" not in documents[0] and documents[0]["metadata"]["missing_image"] is True
     assert documents[1]["image_vector"]==[0.0,0.0,1.0,0.0] and documents[1]["metadata"]["missing_image"] is False
+
+
+def test_index_documents_publish_media_url_instead_of_local_path():
+    rows = [{"product_id": "P1", "title": "Shoe", "main_image_path": "data/a1_abo_1500/images/P1.jpg"}]
+    vector = np.array([[1, 0, 0, 0]], dtype=np.float32)
+
+    documents = build_index_documents(rows, ["P1"], vector, vector, embedding_model="fake", embedding_version="test")
+
+    assert public_image_url(rows[0]["main_image_path"]) == "/media/products/P1.jpg"
+    assert documents[0]["image_url"] == "/media/products/P1.jpg"
