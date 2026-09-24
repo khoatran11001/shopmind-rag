@@ -38,7 +38,7 @@ def build_filter_clauses(filters: dict[str, str | list[str]]) -> list[dict[str, 
         if len(values) == 1:
             clauses.append({"term": {field: {"value": values[0], "case_insensitive": True}}})
         else:
-            clauses.append({"terms": {field: values}})
+            clauses.append({"bool": {"should": [{"term": {field: {"value": item, "case_insensitive": True}}} for item in values], "minimum_should_match": 1}})
     return clauses
 
 
@@ -53,7 +53,7 @@ def build_partial_filter_clauses(filters: dict[str, str | list[str]]) -> list[di
         for value in values:
             cleaned = _canonical_partial_value(key, value)
             if key == "product_id":
-                queries.append({"prefix": {field: {"value": cleaned, "case_insensitive": True}}})
+                queries.append({"prefix": {field: {"value": value.strip(), "case_insensitive": True}}})
             else:
                 queries.append({"wildcard": {field: {"value": f"*{cleaned}*", "case_insensitive": True}}})
         clauses.append(queries[0] if len(queries) == 1 else {"bool": {"should": queries, "minimum_should_match": 1}})
@@ -80,9 +80,29 @@ class ElasticsearchProductRepository:
     def alias_exists(self, alias: str) -> bool:
         return bool(self.client.indices.exists_alias(name=alias))
 
+    def _resolved_filter_clauses(self, filters: dict[str, str | list[str]]) -> list[dict[str, Any]]:
+        # Resolve against the catalog, not query hits: a failed query must never
+        # broaden an existing brand/category or make hybrid branches disagree.
+        build_filter_clauses(filters)
+        clauses = []
+        for key, value in sorted(filters.items()):
+            alternatives = []
+            for item in _values(value, key):
+                exact = build_filter_clauses({key: item})[0]
+                exists = self.client.count(index=self.index_alias, query=exact)["count"] > 0
+                alternatives.append(exact if exists else build_partial_filter_clauses({key: item})[0])
+            clauses.append(alternatives[0] if len(alternatives) == 1 else {"bool": {"should": alternatives, "minimum_should_match": 1}})
+        return clauses
+
     def _lexical_once(self, query: str | None, size: int, clauses: list[dict[str, Any]]) -> list[RawSearchHit]:
         must = [{"match_all": {}}] if query is None else [{"multi_match": {"query": query, "fields": ["title^3", "brand^2", "category^2", "description", "attributes_text", "search_text"]}}]
         search_query: dict[str, Any] = {"bool": {"must": must, "filter": clauses}}
+        if query:
+            search_query = {"bool": {"filter": clauses, "minimum_should_match": 1, "should": [
+                must[0],
+                {"match_phrase": {"title": {"query": query, "boost": 4}}},
+                {"term": {"product_id": {"value": query.strip(), "case_insensitive": True, "boost": 100}}},
+            ]}}
         kwargs: dict[str, Any] = {"index": self.index_alias, "query": search_query, "size": size, "source_excludes": ["text_vector", "image_vector"]}
         if query is None:
             kwargs["sort"] = [{"product_id": "asc"}]
@@ -92,15 +112,14 @@ class ElasticsearchProductRepository:
     def lexical_search(self, query: str | None, size: int, filters: dict[str, str | list[str]]) -> list[RawSearchHit]:
         if size <= 0:
             raise ValueError("size must be positive")
-        hits = self._lexical_once(query, size, build_filter_clauses(filters))
-        return hits or (self._lexical_once(query, size, build_partial_filter_clauses(filters)) if filters else [])
+        return self._lexical_once(query, size, self._resolved_filter_clauses(filters))
 
     def vector_search(self, field: str, vector: list[float], size: int, num_candidates: int, filters: dict[str, str | list[str]]) -> list[RawSearchHit]:
         if field not in _VECTOR_FIELDS:
             raise ValueError(f"unsupported vector field: {field}")
         if size <= 0 or num_candidates < size:
             raise ValueError("num_candidates must be >= positive size")
-        clauses = build_filter_clauses(filters)
+        clauses = self._resolved_filter_clauses(filters)
 
         def search_with(filter_clauses: list[dict[str, Any]]) -> list[RawSearchHit]:
             knn: dict[str, Any] = {"field": field, "query_vector": vector, "k": size, "num_candidates": num_candidates}
@@ -109,8 +128,7 @@ class ElasticsearchProductRepository:
             response = self.client.search(index=self.index_alias, knn=knn, size=size, source_excludes=["text_vector", "image_vector"])
             return [_to_raw_hit(hit) for hit in response.get("hits", {}).get("hits", [])]
 
-        hits = search_with(clauses)
-        return hits or (search_with(build_partial_filter_clauses(filters)) if filters else [])
+        return search_with(clauses)
 
     def filter_options(self, field: str, prefix: str = "", limit: int = 20) -> list[dict[str, Any]]:
         if field not in _FACET_FIELDS:
@@ -126,7 +144,7 @@ class ElasticsearchProductRepository:
         if prefix:
             escaped = _canonical_partial_value(field, prefix)
             if field == "product_id":
-                kwargs["query"] = {"prefix": {keyword_field: {"value": escaped, "case_insensitive": True}}}
+                kwargs["query"] = {"prefix": {keyword_field: {"value": prefix.strip(), "case_insensitive": True}}}
             else:
                 kwargs["query"] = {"wildcard": {keyword_field: {"value": f"*{escaped}*", "case_insensitive": True}}}
         response = self.client.search(**kwargs)

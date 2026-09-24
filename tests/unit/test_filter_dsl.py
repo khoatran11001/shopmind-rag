@@ -5,7 +5,8 @@ from shopmind.app.infrastructure.elasticsearch.repository import build_filter_cl
 def test_filters_support_single_and_multi_values():
     clauses = build_filter_clauses({"brand":"Acme","category":["Shoes","Boots"]})
     assert {"term":{"brand.keyword":{"value":"Acme","case_insensitive":True}}} in clauses
-    assert {"terms":{"category.keyword":["Shoes","Boots"]}} in clauses
+    assert clauses[1]["bool"]["minimum_should_match"] == 1
+    assert clauses[1]["bool"]["should"] == [{"term": {"category.keyword": {"value": value, "case_insensitive": True}}} for value in ["Shoes", "Boots"]]
 
 
 def test_product_id_uses_keyword_field_directly():

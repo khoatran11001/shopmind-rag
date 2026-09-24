@@ -25,6 +25,8 @@ class SearchRequest:
         object.__setattr__(self, "query", query or None)
         if not self.query and not self.filters:
             raise ValueError("query or at least one filter is required")
+        if not self.query and self.mode != SearchMode.BM25:
+            raise ValueError("filter-only search requires bm25 mode")
         if self.top_k <= 0:
             raise ValueError("top_k must be positive")
         if self.candidate_k < self.top_k:

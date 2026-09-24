@@ -25,6 +25,13 @@ def test_repository_bm25_vector_filter_and_alias_lifecycle():
     try:
         create_versioned_index(client,index_name,4); repo=ElasticsearchProductRepository(client,index_name); success,errors=repo.bulk_index(index_name,documents); assert success==3 and errors==[]; client.indices.refresh(index=index_name)
         lexical=repo.lexical_search("Black Running Shoe",3,{}); assert lexical[0].product_id=="P1"
+        assert repo.lexical_search("p2",3,{})[0].product_id == "P2"
+        assert {h.product_id for h in repo.lexical_search(None,3,{"brand":["acme","WoodCo"]})} == {"P1","P2","P3"}
+        assert repo.lexical_search("chair",3,{"brand":"Acme"}) == []
+        assert repo.lexical_search(None,3,{"brand":"Acme","category":"Furniture"}) == []
+        assert {h.product_id for h in repo.vector_search("text_vector",[1,0,0,0],3,3,{"brand":["acm","WoodCo"]})} == {"P1","P2","P3"}
+        assert repo.filter_options("brand", "*", 5) == []
+        assert repo.filter_options("product_id", "p", 5)[0]["value"] == "P1"
         filtered_only=repo.lexical_search(None,3,{"brand":"acme"}); assert {hit.product_id for hit in filtered_only}=={"P1","P3"}
         partial=repo.lexical_search("shoe",3,{"category":"hoe"}); assert partial[0].product_id=="P1"
         vector=repo.vector_search("text_vector",[1,0,0,0],2,3,{}); assert vector[0].product_id=="P1"

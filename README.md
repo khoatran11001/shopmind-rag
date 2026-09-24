@@ -265,7 +265,7 @@ curl -X POST http://localhost:8000/api/v1/search/text \
   }'
 ```
 
-The public filter fields are `brand`, `category`, and `product_id`. Values within Brand or Category are combined with OR; different fields are combined with AND. The API tries a case-insensitive exact filter first, then a substring fallback for Brand/Category or a prefix fallback for Product ID when the exact filter returns no results.
+The public filter fields are `brand`, `category`, and `product_id`. Values within Brand or Category are combined with OR; different fields are combined with AND. Each value is matched case-insensitively against the catalog first. Only values absent from the catalog use substring matching for Brand/Category or prefix matching for Product ID. Existing exact filters are never broadened merely because a query or filter combination has no results. BM25 also supports an exact Product ID in the main query.
 
 Autocomplete values come from the catalog:
 
