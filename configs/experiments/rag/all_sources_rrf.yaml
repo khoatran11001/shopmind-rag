@@ -1,0 +1,10 @@
+experiment:
+  name: rag_all_sources_rrf
+sources: [product, review, policy]
+rag:
+  retrieval:
+    product_mode: hybrid
+    review_mode: hybrid
+    policy_mode: hybrid
+  fusion:
+    method: rrf

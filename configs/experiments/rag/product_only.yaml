@@ -1,0 +1,6 @@
+experiment:
+  name: rag_product_only
+sources: [product]
+rag:
+  retrieval:
+    product_mode: hybrid

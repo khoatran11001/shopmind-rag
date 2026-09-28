@@ -14,7 +14,10 @@ from fastapi.staticfiles import StaticFiles
 
 from shopmind.app.api.errors import EmbeddingUnavailable, ImageTooLarge, InvalidFilter, InvalidImage, SearchInfrastructureError, UnsupportedSearchMode
 from shopmind.app.api.routes.health import router as health_router
+from shopmind.app.api.routes.rag import RAGUnavailable, router as rag_router
 from shopmind.app.api.routes.search import router as search_router
+from shopmind.app.llm.base import InvalidLLMOutput, LLMProviderError
+from shopmind.app.rag.service import ContextConstructionError, KnowledgeRetrievalUnavailable, RAGGenerationError, RerankerUnavailable
 
 logger = logging.getLogger("shopmind")
 
@@ -23,7 +26,7 @@ def _error_body(request: Request, code: str, message: str) -> dict[str, Any]:
     return {"error": {"code": code, "message": message}, "request_id": getattr(request.state, "request_id", "unknown")}
 
 
-def _wire_runtime(app: FastAPI) -> None:
+def _wire_runtime(app: FastAPI, config=None) -> None:
     from shopmind.app.core.config import load_app_config
     from shopmind.app.embedding.siglip2 import SigLIP2EmbeddingProvider
     from shopmind.app.infrastructure.elasticsearch.client import create_elasticsearch_client
@@ -35,7 +38,7 @@ def _wire_runtime(app: FastAPI) -> None:
     from shopmind.app.search.service import SearchService
 
     config_path = Path(os.getenv("SHOPMIND_CONFIG", "configs/app.yaml"))
-    config = load_app_config(config_path)
+    config = config or load_app_config(config_path)
     client = create_elasticsearch_client(config.elasticsearch)
     repository = ElasticsearchProductRepository(client, config.elasticsearch.index_alias)
     embedder = SigLIP2EmbeddingProvider(model_name=config.embedding.model_name, model_revision=None, hf_token=config.embedding.hf_token)
@@ -52,9 +55,18 @@ def _wire_runtime(app: FastAPI) -> None:
     app.state.embedding_version = embedder.model_revision
     app.state.max_image_bytes = config.api.max_image_bytes
     app.state.runtime_error = None
+    if config.rag.enabled:
+        try:
+            from shopmind.app.rag.service import create_rag_service
+
+            app.state.rag_service = create_rag_service(app.state.search_service, client, embedder, config.rag)
+            app.state.rag_runtime_error = None
+        except Exception as exc:
+            logger.exception("RAG runtime initialization failed")
+            app.state.rag_runtime_error = exc
 
 
-def create_app(*, search_service: Any | None = None, repository: Any | None = None, embedder: Any | None = None, index_alias: str = "products", max_image_bytes: int = 5 * 1024 * 1024, product_image_dir: str | Path | None = None, auto_wire: bool = True) -> FastAPI:
+def create_app(*, search_service: Any | None = None, repository: Any | None = None, embedder: Any | None = None, index_alias: str = "products", max_image_bytes: int = 5 * 1024 * 1024, product_image_dir: str | Path | None = None, rag_service: Any | None = None, auto_wire: bool = True) -> FastAPI:
     if max_image_bytes <= 0:
         raise ValueError("max_image_bytes must be positive")
 
@@ -77,6 +89,8 @@ def create_app(*, search_service: Any | None = None, repository: Any | None = No
     app.state.embedding_model = getattr(embedder, "model_name", None)
     app.state.embedding_version = getattr(embedder, "model_revision", None)
     app.state.runtime_error = None
+    app.state.rag_service = rag_service
+    app.state.rag_runtime_error = None
     app.mount("/media/products", StaticFiles(directory=product_image_dir or os.getenv("PRODUCT_IMAGE_DIR", "data/raw/images"), check_dir=False), name="product-images")
 
     @app.middleware("http")
@@ -115,8 +129,28 @@ def create_app(*, search_service: Any | None = None, repository: Any | None = No
     async def infrastructure_error_handler(request: Request, exc: SearchInfrastructureError):
         return JSONResponse(status_code=503, content=_error_body(request, "search_infrastructure_unavailable", str(exc)))
 
+    @app.exception_handler(RAGUnavailable)
+    async def rag_unavailable_handler(request: Request, exc: RAGUnavailable):
+        return JSONResponse(status_code=503, content=_error_body(request, "rag_unavailable", str(exc)))
+
+    @app.exception_handler(KnowledgeRetrievalUnavailable)
+    @app.exception_handler(RerankerUnavailable)
+    @app.exception_handler(ContextConstructionError)
+    async def rag_dependency_handler(request: Request, exc: Exception):
+        return JSONResponse(status_code=503, content=_error_body(request, "rag_dependency_unavailable", str(exc)))
+
+    @app.exception_handler(LLMProviderError)
+    async def llm_unavailable_handler(request: Request, exc: LLMProviderError):
+        return JSONResponse(status_code=503, content=_error_body(request, "llm_unavailable", str(exc)))
+
+    @app.exception_handler(InvalidLLMOutput)
+    @app.exception_handler(RAGGenerationError)
+    async def rag_generation_handler(request: Request, exc: Exception):
+        return JSONResponse(status_code=502, content=_error_body(request, "rag_generation_failed", str(exc)))
+
     app.include_router(health_router)
     app.include_router(search_router)
+    app.include_router(rag_router)
     return app
 
 

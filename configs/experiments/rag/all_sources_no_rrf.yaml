@@ -1,0 +1,6 @@
+experiment:
+  name: rag_all_sources_no_rrf
+sources: [product, review, policy]
+rag:
+  fusion:
+    method: concat

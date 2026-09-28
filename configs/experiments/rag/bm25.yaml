@@ -1,0 +1,8 @@
+experiment:
+  name: rag_bm25
+sources: [product, review, policy]
+rag:
+  retrieval:
+    product_mode: bm25
+    review_mode: bm25
+    policy_mode: bm25

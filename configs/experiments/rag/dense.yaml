@@ -1,0 +1,8 @@
+experiment:
+  name: rag_dense
+sources: [product, review, policy]
+rag:
+  retrieval:
+    product_mode: dense
+    review_mode: dense
+    policy_mode: dense

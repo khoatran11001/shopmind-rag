@@ -1,8 +1,8 @@
-# ShopMind Multimodal Product Retrieval
+# ShopMind Multimodal Product Retrieval and A3 RAG
 
 Python-first retrieval foundation for product search using Amazon Berkeley Objects (ABO), Elasticsearch BM25 + dense-vector kNN, SigLIP2 multimodal embeddings, Reciprocal Rank Fusion (RRF), FastAPI, and reproducible information-retrieval evaluation.
 
-A1 deliberately stops at retrieval. It does **not** implement LLM generation, RAG answer generation, chunking, agents, Redis, Celery, Kafka, Kubernetes, or a separate vector database. The retrieval boundary is designed so a later RAG layer can consume `RetrievedDocument[]` without importing Elasticsearch DSL.
+A1 stops at retrieval. A3 adds a separate answer layer using `RetrievedDocument[]`; product search remains available when RAG or its LLM is unavailable.
 
 ## Architecture
 
@@ -18,7 +18,10 @@ ABO compact subset -> canonical products + local main images -> SigLIP2 text/ima
                                                          |
                                                    SearchService
                                                      /       \
-                                                FastAPI   future RAG
+                                                FastAPI   A3 RAG <- reviews + policies
+                                                             |
+                                                             v
+                                                     answer + sources
 ```
 
 Elasticsearch is the primary search store. Embeddings are generated offline and saved as reusable artifacts before any indexing step.
@@ -375,12 +378,59 @@ Real SigLIP2 smoke testing is opt-in because it can download a large model:
 RUN_SLOW_MODEL_TESTS=1 pytest -m slow -q
 ```
 
-## Future RAG extension
+## A3 product questions
 
-Future RAG should depend on the stable application contract:
+The A3 API searches three evidence sources: the existing A1 product index, matched Amazon review records, and the versioned **experimental** ShopMind policies in `data/policies/shopmind_policies.jsonl`. No Amazon review data is bundled. Policies are examples for this prototype, not real store terms.
 
-```python
-retrieved = SearchService.to_retrieved_documents(results)
+Prepare reviews from a supplied Amazon Reviews JSONL or JSONL.gz file. Review matching uses exact `asin` and then exact `parent_asin`; check the overlap report before indexing. Use the 1,500-product A1 catalog, not `data/processed/products.jsonl` (the four-row sample).
+
+```bash
+python -m scripts.analyze_review_overlap \
+  --products data/a1_abo_1500/products.jsonl \
+  --reviews /path/to/reviews.jsonl.gz \
+  --output reports/a3/overlap.json
+python -m scripts.prepare_reviews \
+  --products data/a1_abo_1500/products.jsonl \
+  --reviews /path/to/reviews.jsonl.gz \
+  --output data/processed/reviews.jsonl
 ```
 
-Each `RetrievedDocument` has `id`, `content`, `score`, `source="product"`, and metadata. A later `RAGService` can add multi-index retrieval, context construction, citations, and an LLM above this boundary. It should **not** call Elasticsearch DSL from the RAG/API layer or rewrite the A1 retrieval core.
+Generate embeddings with the configured SigLIP2 model, then index the two knowledge sources. The embedding commands use the Docker CPU runtime to avoid the local Python 3.13/MPS crash.
+
+```bash
+docker compose run --rm -T --no-deps -v "$PWD:/app" api \
+  python -m scripts.generate_knowledge_embeddings --source review \
+  --input data/processed/reviews.jsonl --dataset-version reviews_a3_v1 \
+  --output-dir data/embeddings/reviews_a3_v1
+docker compose run --rm -T --no-deps -v "$PWD:/app" api \
+  python -m scripts.generate_knowledge_embeddings --source policy \
+  --input data/policies/shopmind_policies.jsonl --dataset-version policies_a3_v1 \
+  --output-dir data/embeddings/policies_a3_v1
+python -m scripts.index_reviews --input data/processed/reviews.jsonl \
+  --embeddings data/embeddings/reviews_a3_v1 --index-name reviews_a3_v1 \
+  --switch-alias
+python -m scripts.index_policies --input data/policies/shopmind_policies.jsonl \
+  --embeddings data/embeddings/policies_a3_v1 --index-name policies_a3_v1 \
+  --switch-alias
+```
+
+Each index command checks document count, embedding dimension, BM25, and vector search before switching its alias. To generate answers, install the package dependencies and set `OPENAI_API_KEY` in the API environment. Cross-encoder reranking is optional: install `pip install -e '.[rag-rerank]'` and set `rag.reranker.enabled: true` in `configs/app.yaml` when needed.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/rag/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"What do reviews say about this item?", "product_id":"B07PH3GSND", "sources":["product","review","policy"]}'
+```
+
+The response has `answer`, `sources` (`document_id`, source, title, final score, product ID or policy version where applicable), and `insufficient_evidence`. The source metadata identifies whether `score` is a source score, RRF score, or reranker score; scores from different modes are not directly comparable. Source IDs must come from the exact context sent to the LLM; the server resolves titles, URLs, and scores, and allows one retry for an invalid citation. `product_id` restricts product and review evidence to an exact catalog ID. If an index exists but returns no evidence, the API abstains; if a requested source index is missing, it returns `503`. Requests can set `sources: ["product"]` before reviews are indexed. Without an API key, generation returns `503` while A1 search and `/ready` remain usable. The documented [OpenAI Responses API structured output format](https://developers.openai.com/api/docs/guides/structured-outputs) is used for the answer contract.
+
+Build an unreviewed seed evaluation set after review preparation, then run the six A3 configurations. They compare product-only and all-source evidence, BM25/dense/hybrid retrieval, cross-source RRF, and optional reranking. Outputs under `runs/a3/` include case results, failure categories (candidate, fusion, citation, abstention, runtime), citation/retrieval metrics, and p50/p95 latency. Answer correctness stays `null` until a grader or human review is supplied.
+
+```bash
+python -m scripts.build_rag_evaluation_set \
+  --reviews data/processed/reviews.jsonl \
+  --output data/evaluation/rag_cases.jsonl
+python -m scripts.run_rag_experiment \
+  --configs configs/experiments/rag/*.yaml \
+  --cases data/evaluation/rag_cases.jsonl
+```

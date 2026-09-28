@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,6 +47,57 @@ class ApiConfig(BaseModel):
     max_image_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
 
 
+class RAGRetrievalConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
+    review_mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
+    policy_mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
+    product_candidates: int = Field(default=20, gt=0)
+    review_candidates: int = Field(default=40, gt=0)
+    policy_candidates: int = Field(default=20, gt=0)
+
+
+class RAGFusionConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    method: Literal["rrf", "concat"] = "rrf"
+    rrf_k: int = Field(default=60, gt=0)
+    top_k: int = Field(default=40, gt=0)
+
+
+class RAGRerankerConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+    model_name: str = "BAAI/bge-reranker-v2-m3"
+    top_k: int = Field(default=12, gt=0)
+
+
+class RAGContextConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    max_documents: int = Field(default=12, gt=0)
+    max_product: int = Field(default=4, ge=0)
+    max_reviews: int = Field(default=5, ge=0)
+    max_policies: int = Field(default=3, ge=0)
+    max_characters: int = Field(default=24000, gt=0)
+
+
+class RAGLLMConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["openai"] = "openai"
+    model: str = "gpt-5.4-mini"
+    api_key: str | None = None
+    max_generation_attempts: int = Field(default=2, ge=1, le=2)
+
+
+class RAGConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+    retrieval: RAGRetrievalConfig = Field(default_factory=RAGRetrievalConfig)
+    fusion: RAGFusionConfig = Field(default_factory=RAGFusionConfig)
+    reranker: RAGRerankerConfig = Field(default_factory=RAGRerankerConfig)
+    context: RAGContextConfig = Field(default_factory=RAGContextConfig)
+    llm: RAGLLMConfig = Field(default_factory=RAGLLMConfig)
+
+
 class AppConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     elasticsearch: ElasticsearchConfig
@@ -55,6 +106,7 @@ class AppConfig(BaseModel):
     fusion: FusionConfig
     reranker: RerankerConfig
     api: ApiConfig = Field(default_factory=ApiConfig)
+    rag: RAGConfig = Field(default_factory=RAGConfig)
 
 
 def _overlay_env(data: dict[str, Any]) -> dict[str, Any]:
@@ -68,6 +120,11 @@ def _overlay_env(data: dict[str, Any]) -> dict[str, Any]:
     data = dict(data)
     data["elasticsearch"] = elasticsearch
     data["embedding"] = embedding
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        rag = dict(data.get("rag") or {})
+        rag["llm"] = {**(rag.get("llm") or {}), "api_key": api_key}
+        data["rag"] = rag
     return data
 
 

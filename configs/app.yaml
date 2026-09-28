@@ -16,3 +16,5 @@ reranker:
   enabled: false
 api:
   max_image_bytes: 5242880
+rag:
+  enabled: true

@@ -1,0 +1,8 @@
+experiment:
+  name: rag_all_sources_rrf_rerank
+sources: [product, review, policy]
+rag:
+  fusion:
+    method: rrf
+  reranker:
+    enabled: true
