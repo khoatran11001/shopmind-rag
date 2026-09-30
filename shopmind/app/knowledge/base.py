@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+import re
 from typing import Any, Protocol
 
 from shopmind.app.domain.search_result import RetrievedDocument
@@ -11,6 +12,21 @@ class KnowledgeMode(StrEnum):
     BM25 = "bm25"
     DENSE = "dense"
     HYBRID = "hybrid"
+    ADAPTIVE = "adaptive"
+
+
+_MODEL_ID = re.compile(r"\b[a-z][a-z0-9-]*(?:[\s-]+\d+[a-z0-9-]*|[a-z0-9-]*\d[a-z0-9-]*)\b", re.IGNORECASE)
+
+
+def resolve_knowledge_mode(mode: KnowledgeMode, query: str) -> KnowledgeMode:
+    if mode != KnowledgeMode.ADAPTIVE:
+        return mode
+    model = _MODEL_ID.search(query)
+    if model is None:
+        return KnowledgeMode.DENSE
+    # ponytail: model-token heuristic; replace with a measured router if retrieval evaluation shows misses.
+    has_description = re.search(r"\w", query[:model.start()] + query[model.end():]) is not None
+    return KnowledgeMode.HYBRID if has_description else KnowledgeMode.BM25
 
 
 @dataclass(frozen=True)

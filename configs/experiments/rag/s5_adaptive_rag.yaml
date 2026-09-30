@@ -1,0 +1,13 @@
+experiment:
+  name: s5_adaptive_rag
+  generate_answers: true
+sources: [product, review, policy]
+rag:
+  retrieval:
+    product_mode: adaptive
+    review_mode: adaptive
+    policy_mode: adaptive
+  fusion:
+    method: rrf
+  reranker:
+    enabled: true

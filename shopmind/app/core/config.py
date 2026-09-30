@@ -49,9 +49,9 @@ class ApiConfig(BaseModel):
 
 class RAGRetrievalConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    product_mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
-    review_mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
-    policy_mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
+    product_mode: Literal["bm25", "dense", "hybrid", "adaptive"] = "hybrid"
+    review_mode: Literal["bm25", "dense", "hybrid", "adaptive"] = "hybrid"
+    policy_mode: Literal["bm25", "dense", "hybrid", "adaptive"] = "hybrid"
     product_candidates: int = Field(default=20, gt=0)
     review_candidates: int = Field(default=40, gt=0)
     policy_candidates: int = Field(default=20, gt=0)

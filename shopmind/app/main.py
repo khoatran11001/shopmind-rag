@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from shopmind.app.api.errors import EmbeddingUnavailable, ImageTooLarge, InvalidFilter, InvalidImage, SearchInfrastructureError, UnsupportedSearchMode
+from shopmind.app.api.routes.debug import router as debug_router
 from shopmind.app.api.routes.health import router as health_router
 from shopmind.app.api.routes.rag import RAGUnavailable, router as rag_router
 from shopmind.app.api.routes.search import router as search_router
@@ -54,6 +55,7 @@ def _wire_runtime(app: FastAPI, config=None) -> None:
     app.state.embedding_model = embedder.model_name
     app.state.embedding_version = embedder.model_revision
     app.state.max_image_bytes = config.api.max_image_bytes
+    app.state.fusion_rrf_k = config.fusion.rrf_k
     app.state.runtime_error = None
     if config.rag.enabled:
         try:
@@ -66,9 +68,11 @@ def _wire_runtime(app: FastAPI, config=None) -> None:
             app.state.rag_runtime_error = exc
 
 
-def create_app(*, search_service: Any | None = None, repository: Any | None = None, embedder: Any | None = None, index_alias: str = "products", max_image_bytes: int = 5 * 1024 * 1024, product_image_dir: str | Path | None = None, rag_service: Any | None = None, auto_wire: bool = True) -> FastAPI:
+def create_app(*, search_service: Any | None = None, repository: Any | None = None, embedder: Any | None = None, index_alias: str = "products", max_image_bytes: int = 5 * 1024 * 1024, product_image_dir: str | Path | None = None, rag_service: Any | None = None, fusion_rrf_k: int = 60, auto_wire: bool = True) -> FastAPI:
     if max_image_bytes <= 0:
         raise ValueError("max_image_bytes must be positive")
+    if fusion_rrf_k <= 0:
+        raise ValueError("fusion_rrf_k must be positive")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -86,6 +90,7 @@ def create_app(*, search_service: Any | None = None, repository: Any | None = No
     app.state.embedder = embedder
     app.state.index_alias = index_alias
     app.state.max_image_bytes = max_image_bytes
+    app.state.fusion_rrf_k = fusion_rrf_k
     app.state.embedding_model = getattr(embedder, "model_name", None)
     app.state.embedding_version = getattr(embedder, "model_revision", None)
     app.state.runtime_error = None
@@ -150,6 +155,7 @@ def create_app(*, search_service: Any | None = None, repository: Any | None = No
 
     app.include_router(health_router)
     app.include_router(search_router)
+    app.include_router(debug_router)
     app.include_router(rag_router)
     return app
 

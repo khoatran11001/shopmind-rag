@@ -144,6 +144,47 @@ def test_runner_rejects_unknown_knobs_before_creating_service(tmp_path: Path):
     assert not called
 
 
+def test_retrieval_only_ablation_never_calls_llm_and_leaves_answer_metrics_unmeasured(tmp_path: Path):
+    from evaluation.rag.runner import run_rag_experiment
+
+    config = tmp_path / "retrieval_only.yaml"
+    config.write_text("experiment:\n  name: retrieval_only\n  generate_answers: false\nsources: [review]\n")
+
+    class Service:
+        def retrieve(self, request):
+            assert request.sources == ("review",)
+            return {
+                "retrieved_ids": ["review:r1"],
+                "fused_ids": ["review:r1"],
+                "reranked_ids": ["review:r1"],
+                "retrieval_modes": {"review": "bm25"},
+            }
+
+        def answer(self, request):
+            raise AssertionError("retrieval-only experiments must not generate answers")
+
+    summary = run_rag_experiment(config_path=config, service_factory=lambda rag: Service(), cases=[_case()], runs_root=tmp_path / "runs")
+    metrics = json.loads((summary.run_dir / "metrics.json").read_text())["metrics"]
+    result = json.loads((summary.run_dir / "results.jsonl").read_text())
+
+    assert metrics["candidate_recall"] == 1.0
+    assert metrics["reranked_ndcg_at_10"] == 1.0
+    assert metrics["citation_precision"] is None
+    assert metrics["answer_correctness"] is None
+    assert result["answer"] is None
+    assert result["citation_ids"] is None
+    assert result["retrieval_modes"] == {"review": "bm25"}
+
+
+def test_retrieval_only_flag_must_be_boolean(tmp_path: Path):
+    from evaluation.rag.runner import load_experiment_config
+
+    config = tmp_path / "bad.yaml"
+    config.write_text("experiment:\n  name: bad\n  generate_answers: false-ish\n")
+    with pytest.raises(ValueError, match="generate_answers"):
+        load_experiment_config(config)
+
+
 def test_builder_uses_a_review_matched_to_selected_product(tmp_path: Path):
     from scripts.build_rag_evaluation_set import build_rag_evaluation_set
     from evaluation.rag.datasets import load_rag_cases

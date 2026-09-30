@@ -115,6 +115,22 @@ def test_missing_llm_fails_even_when_retrieval_has_no_evidence():
         _service({"product": Retriever("product", [])}, None).answer(RAGRequest("Unknown?", sources=("product",)))
 
 
+def test_retrieval_trace_runs_without_an_llm_for_ablation():
+    from shopmind.app.knowledge.base import KnowledgeMode
+
+    product = RetrievedDocument("product:P1", "Blue shoes", 1.0, "product", {"title": "Blue shoes"})
+    retriever = Retriever("product", [product])
+    retriever.mode = KnowledgeMode.ADAPTIVE
+    service = _service({"product": retriever}, None)
+
+    trace = service.retrieve(RAGRequest("Blue shoes?", sources=("product",)))
+
+    assert trace["retrieved_ids"] == ["product:P1"]
+    assert trace["fused_ids"] == ["product:P1"]
+    assert trace["reranked_ids"] == ["product:P1"]
+    assert trace["retrieval_modes"] == {"product": "dense"}
+
+
 def test_context_budget_and_source_caps_limit_llm_citations():
     documents = [
         RetrievedDocument("review:R1", "first review", 1, "review", {"title": "First"}),

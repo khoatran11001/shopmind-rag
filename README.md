@@ -363,7 +363,7 @@ Representative failure records use evidence-based categories such as lexical mis
 Fast tests do not require Elasticsearch or a real model:
 
 ```bash
-pytest tests/unit tests/api tests/evaluation -q
+pytest tests/unit tests/api tests/evaluation tests/a3 -q
 ```
 
 With Elasticsearch running:
@@ -414,7 +414,7 @@ python -m scripts.index_policies --input data/policies/shopmind_policies.jsonl \
   --switch-alias
 ```
 
-Each index command checks document count, embedding dimension, BM25, and vector search before switching its alias. To generate answers, install the package dependencies and set `OPENAI_API_KEY` in the API environment. Cross-encoder reranking is optional: install `pip install -e '.[rag-rerank]'` and set `rag.reranker.enabled: true` in `configs/app.yaml` when needed.
+Each index command checks document count, embedding dimension, BM25, and vector search before switching its alias. To generate answers, install the package dependencies and set `OPENAI_API_KEY` in the API environment. Cross-encoder reranking is optional: install `pip install -e '.[rag-rerank]'` and set `rag.reranker.enabled: true` in `configs/app.yaml` when needed. The cross-encoder also downloads its model weights on first use; the [BGE model card](https://huggingface.co/BAAI/bge-reranker-v2-m3) documents the model and usage.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/rag/ask \
@@ -424,13 +424,19 @@ curl -X POST http://localhost:8000/api/v1/rag/ask \
 
 The response has `answer`, `sources` (`document_id`, source, title, final score, product ID or policy version where applicable), and `insufficient_evidence`. The source metadata identifies whether `score` is a source score, RRF score, or reranker score; scores from different modes are not directly comparable. Source IDs must come from the exact context sent to the LLM; the server resolves titles, URLs, and scores, and allows one retry for an invalid citation. `product_id` restricts product and review evidence to an exact catalog ID. If an index exists but returns no evidence, the API abstains; if a requested source index is missing, it returns `503`. Requests can set `sources: ["product"]` before reviews are indexed. Without an API key, generation returns `503` while A1 search and `/ready` remain usable. The documented [OpenAI Responses API structured output format](https://developers.openai.com/api/docs/guides/structured-outputs) is used for the answer contract.
 
-Build an unreviewed seed evaluation set after review preparation, then run the six A3 configurations. They compare product-only and all-source evidence, BM25/dense/hybrid retrieval, cross-source RRF, and optional reranking. Outputs under `runs/a3/` include case results, failure categories (candidate, fusion, citation, abstention, runtime), citation/retrieval metrics, and p50/p95 latency. Answer correctness stays `null` until a grader or human review is supplied.
+The `test-ui` frontend now connects both text and image search results to this endpoint: choose a product, select available evidence sources, ask a question, and inspect citations. Follow-up questions stay scoped to the selected product but are independent requests; choose another search result to change product. Search can still run without the LLM key.
+
+For an explanation of a product's search rank, call `POST /api/v1/debug/search` with the same JSON body as `/api/v1/search/text`. It returns BM25/dense ranks, their `1 / (k + rank)` RRF contributions, final score, and reranker score when present. Native BM25/dense scores are available only for their direct modes; they are not retained by A1's hybrid fusion.
+
+Build an unreviewed seed evaluation set after review preparation. The six `s0`–`s5` configurations provide a controlled progression on the same cases and indexed data: BM25, dense, hybrid RRF, hybrid plus reranker, hybrid plus answer generation, then query-aware retrieval plus generation. `s0`–`s3` measure retrieval without calling an LLM; answer and citation metrics remain `null`. `s4`–`s5` need `OPENAI_API_KEY`; `s3`–`s5` need the `rag-rerank` extra. The other configurations in the directory provide product-only, no-RRF, and direct RAG comparisons. Outputs under `runs/a3/` include case results, failure categories (candidate, fusion, rerank, citation, abstention, runtime), citation/retrieval metrics, and p50/p95 latency. Answer correctness stays `null` until a grader or human review is supplied. Do not interpret the five seed cases or policy examples as measured answer quality; review qrels and use real matched reviews before reporting results.
+
+`adaptive` is available for each A3 retrieval source through `rag.retrieval.*_mode`. Its small rule sends a short model/number query such as `RTX 5060` to BM25, a descriptive query without an identifier to dense, and a mixed query to hybrid. The default remains hybrid until measured results justify changing it. This rule is an experiment setting, not a learned classifier.
 
 ```bash
 python -m scripts.build_rag_evaluation_set \
   --reviews data/processed/reviews.jsonl \
   --output data/evaluation/rag_cases.jsonl
 python -m scripts.run_rag_experiment \
-  --configs configs/experiments/rag/*.yaml \
+  --configs configs/experiments/rag/s[0-5]_*.yaml \
   --cases data/evaluation/rag_cases.jsonl
 ```

@@ -1,0 +1,13 @@
+experiment:
+  name: s0_bm25_retrieval
+  generate_answers: false
+sources: [product, review, policy]
+rag:
+  retrieval:
+    product_mode: bm25
+    review_mode: bm25
+    policy_mode: bm25
+  fusion:
+    method: rrf
+  reranker:
+    enabled: false

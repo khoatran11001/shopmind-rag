@@ -1,0 +1,13 @@
+experiment:
+  name: s4_hybrid_rag
+  generate_answers: true
+sources: [product, review, policy]
+rag:
+  retrieval:
+    product_mode: hybrid
+    review_mode: hybrid
+    policy_mode: hybrid
+  fusion:
+    method: rrf
+  reranker:
+    enabled: true

@@ -76,6 +76,44 @@ class TextSearchResponse(BaseModel):
     results: list[ProductSearchResult]
 
 
+class DebugSearchResult(BaseModel):
+    product_id: str
+    title: str
+    rank: int
+    source: str
+    final_score: float
+    bm25_rank: int | None
+    dense_rank: int | None
+    bm25_rrf_contribution: float | None
+    dense_rrf_contribution: float | None
+    rrf_score: float | None
+    reranker_score: float | None
+    bm25_score: float | None
+    dense_score: float | None
+
+    @classmethod
+    def from_domain(cls, result: SearchResult, *, rrf_k: int) -> "DebugSearchResult":
+        scores = result.retrieval_scores
+        fused = result.source == "hybrid"
+        return cls(
+            product_id=result.product_id, title=result.title, rank=result.rank, source=result.source,
+            final_score=result.score, bm25_rank=scores.bm25_rank, dense_rank=scores.dense_rank,
+            bm25_rrf_contribution=1 / (rrf_k + scores.bm25_rank) if fused and scores.bm25_rank is not None else None,
+            dense_rrf_contribution=1 / (rrf_k + scores.dense_rank) if fused and scores.dense_rank is not None else None,
+            rrf_score=scores.rrf_score, reranker_score=scores.reranker_score,
+            bm25_score=result.score if result.source == "bm25" else None,
+            dense_score=result.score if result.source in {"dense", "cross_modal"} else None,
+        )
+
+
+class DebugSearchResponse(BaseModel):
+    query: str | None
+    mode: str
+    filter_only: bool
+    rrf_k: int
+    results: list[DebugSearchResult]
+
+
 class ImageSearchResponse(BaseModel):
     mode: str = "image_dense"
     results: list[ProductSearchResult]

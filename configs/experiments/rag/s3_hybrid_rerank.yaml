@@ -1,0 +1,13 @@
+experiment:
+  name: s3_hybrid_rerank
+  generate_answers: false
+sources: [product, review, policy]
+rag:
+  retrieval:
+    product_mode: hybrid
+    review_mode: hybrid
+    policy_mode: hybrid
+  fusion:
+    method: rrf
+  reranker:
+    enabled: true

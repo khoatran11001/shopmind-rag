@@ -13,7 +13,7 @@ from typing import Any, Callable, Iterable
 import yaml
 
 from evaluation.rag.datasets import RAGEvaluationCase, SOURCES
-from evaluation.rag.metrics import classify_failure, score_case
+from evaluation.rag.metrics import classify_failure, score_case, score_retrieval
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,8 @@ def load_experiment_config(path: str | Path, base_config: Any = None) -> tuple[d
     experiment = raw.get("experiment")
     if not isinstance(experiment, dict) or not str(experiment.get("name") or "").strip():
         raise ValueError("experiment.name is required")
+    if not isinstance(experiment.get("generate_answers", True), bool):
+        raise ValueError("experiment.generate_answers must be boolean")
     sources = raw.get("sources", ["product", "review", "policy"])
     if not isinstance(sources, list) or not sources or len(set(sources)) != len(sources) or set(sources) - SOURCES:
         raise ValueError("sources must be a nonempty list of unique product, review, or policy values")
@@ -77,6 +79,7 @@ def run_rag_experiment(
     experiment, rag_config = load_experiment_config(config_path, base_config)
     service = service_factory(rag_config)
     name = str(experiment["experiment"]["name"])
+    generate_answers = experiment["experiment"].get("generate_answers", True)
     safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", name).strip("_") or "rag"
     run_dir = Path(runs_root) / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}_{safe_name}"
     run_dir.mkdir(parents=True)
@@ -95,21 +98,23 @@ def run_rag_experiment(
     for case in cases:
         started = perf_counter()
         try:
-            answer = service.answer(RAGRequest(question=case.question, product_id=case.product_id, sources=tuple(experiment["sources"]), debug=True))
+            request = RAGRequest(question=case.question, product_id=case.product_id, sources=tuple(experiment["sources"]), debug=True)
+            answer = service.answer(request) if generate_answers else None
+            trace = (answer.metadata or {}) if generate_answers else service.retrieve(request)
             latency_ms = (perf_counter() - started) * 1000
             latencies.append(latency_ms)
-            metrics = score_case(case, answer, grader=grader)
+            metrics = score_case(case, answer, grader=grader) if generate_answers else score_retrieval(case, trace)
             category = classify_failure(case, metrics)
             if category is not None:
                 error_counts[category] += 1
-            trace = answer.metadata or {}
             results.append({
                 "question_id": case.question_id,
                 "question_class": case.question_class,
                 "product_id": case.product_id,
-                "answer": answer.answer,
-                "insufficient_evidence": answer.insufficient_evidence,
-                "citation_ids": [source.document_id for source in answer.sources],
+                "answer": answer.answer if answer is not None else None,
+                "insufficient_evidence": answer.insufficient_evidence if answer is not None else None,
+                "citation_ids": [source.document_id for source in answer.sources] if answer is not None else None,
+                "retrieval_modes": trace.get("retrieval_modes"),
                 "retrieved_ids": trace.get("retrieved_ids"),
                 "fused_ids": trace.get("fused_ids"),
                 "reranked_ids": trace.get("reranked_ids"),
@@ -144,7 +149,7 @@ def run_rag_experiment(
     _write_jsonl(run_dir / "errors.jsonl", errors)
     summary_lines = [f"# RAG experiment: {name}", "", f"Cases: {len(results)} successful, {len(errors)} failed", f"Labels: {', '.join(payload['label_statuses'])}", ""]
     summary_lines += [f"- {key}: {value:.4f}" if value is not None else f"- {key}: unmeasured" for key, value in metrics.items()]
-    summary_lines += ["", "Answer correctness requires an external grader; fact coverage is only a string match proxy.", ""]
+    summary_lines += ["", "Answer correctness requires an external grader; fact coverage is only a string match proxy." if generate_answers else "Retrieval-only run; answer and citation metrics were not measured.", ""]
     (run_dir / "summary.md").write_text("\n".join(summary_lines), encoding="utf-8")
     if not results:
         raise RuntimeError(f"all RAG cases failed; artifacts written to {run_dir}")

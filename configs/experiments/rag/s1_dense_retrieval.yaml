@@ -1,0 +1,13 @@
+experiment:
+  name: s1_dense_retrieval
+  generate_answers: false
+sources: [product, review, policy]
+rag:
+  retrieval:
+    product_mode: dense
+    review_mode: dense
+    policy_mode: dense
+  fusion:
+    method: rrf
+  reranker:
+    enabled: false

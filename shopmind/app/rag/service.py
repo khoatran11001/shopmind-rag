@@ -4,6 +4,7 @@ from time import perf_counter
 from typing import TYPE_CHECKING
 
 from shopmind.app.llm.base import LLMProviderError, LLMRequest
+from shopmind.app.knowledge.base import KnowledgeMode, resolve_knowledge_mode
 from shopmind.app.rag.citations import CitationValidationError
 from shopmind.app.rag.models import RAGAnswer, RAGRequest, SOURCES
 
@@ -51,6 +52,22 @@ class RAGService:
         if self.llm is None:
             raise LLMProviderError("OPENAI_API_KEY is not configured")
         started = perf_counter()
+        reranked, trace = self._retrieve_ranked(request)
+        try:
+            context = self.context_builder.build(reranked)
+        except Exception as exc:
+            raise ContextConstructionError("RAG context construction failed") from exc
+        trace = {**trace, "context_ids": list(context.citation_ids), **context.metadata}
+        if not context.documents:
+            return RAGAnswer("Insufficient evidence in the indexed knowledge sources.", (), True, {**trace, "generation_attempts": 0, "total_ms": (perf_counter() - started) * 1000})
+        answer = self._generate(request, context)
+        return RAGAnswer(answer.answer, answer.sources, answer.insufficient_evidence, {**trace, **answer.metadata, "total_ms": (perf_counter() - started) * 1000})
+
+    def retrieve(self, request: RAGRequest) -> dict:
+        _, trace = self._retrieve_ranked(request)
+        return trace
+
+    def _retrieve_ranked(self, request: RAGRequest):
         try:
             rankings = self.multi_source.retrieve(request.question, request.sources, product_id=request.product_id)
             fused = self.fusion([rankings[source] for source in SOURCES if source in rankings], k=self.rrf_k, top_k=self.fused_top_k)
@@ -60,22 +77,19 @@ class RAGService:
             reranked = self.reranker.rerank(request.question, fused, self.rerank_top_k)
         except Exception as exc:
             raise RerankerUnavailable("document reranking is unavailable") from exc
-        try:
-            context = self.context_builder.build(reranked)
-        except Exception as exc:
-            raise ContextConstructionError("RAG context construction failed") from exc
+        retrieval_modes = {}
+        for source in rankings:
+            mode = getattr(self.multi_source.retrievers[source], "mode", None)
+            if mode is not None:
+                retrieval_modes[source] = "bm25" if source == "product" and request.product_id else resolve_knowledge_mode(KnowledgeMode(mode), request.question).value
         trace = {
             "per_source_candidate_counts": {source: len(documents) for source, documents in rankings.items()},
+            "retrieval_modes": retrieval_modes,
             "retrieved_ids": [document.id for source in SOURCES for document in rankings.get(source, ())],
             "fused_ids": [document.id for document in fused],
             "reranked_ids": [document.id for document in reranked],
-            "context_ids": list(context.citation_ids),
-            **context.metadata,
         }
-        if not context.documents:
-            return RAGAnswer("Insufficient evidence in the indexed knowledge sources.", (), True, {**trace, "generation_attempts": 0, "total_ms": (perf_counter() - started) * 1000})
-        answer = self._generate(request, context)
-        return RAGAnswer(answer.answer, answer.sources, answer.insufficient_evidence, {**trace, **answer.metadata, "total_ms": (perf_counter() - started) * 1000})
+        return reranked, trace
 
     def _generate(self, request, context) -> RAGAnswer:
         feedback = ""
